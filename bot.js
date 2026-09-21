@@ -185,7 +185,7 @@ async function sendLog(guild, embed) {
     }
 }
 
-client.once("ready", async () => {
+client.once("clientReady", async () => {
 
     console.log("================================");
     console.log("🤖 AutoWarn запущен");
