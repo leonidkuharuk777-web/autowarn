@@ -140,7 +140,7 @@ const commands = [
         )
         .setDefaultMemberPermissions(
             PermissionFlagsBits.ManageGuild
-        )
+        ),
 new SlashCommandBuilder()
     .setName("masswarn")
     .setDescription("Выдать несколько предупреждений отдельными сообщениями")
