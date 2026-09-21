@@ -1,0 +1,13 @@
+{
+  "name": "autowarn",
+  "version": "1.0.0",
+  "description": "Discord AutoWarn moderation bot",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.2.2"
+  }
+}
