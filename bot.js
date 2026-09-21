@@ -141,7 +141,32 @@ const commands = [
         .setDefaultMemberPermissions(
             PermissionFlagsBits.ManageGuild
         )
-
+new SlashCommandBuilder()
+    .setName("masswarn")
+    .setDescription("Выдать несколько предупреждений отдельными сообщениями")
+    .addUserOption(option =>
+        option
+            .setName("user")
+            .setDescription("Пользователь")
+            .setRequired(true)
+    )
+    .addIntegerOption(option =>
+        option
+            .setName("amount")
+            .setDescription("Количество предупреждений")
+            .setRequired(true)
+            .setMinValue(1)
+            .setMaxValue(20)
+    )
+    .addStringOption(option =>
+        option
+            .setName("reason")
+            .setDescription("Причина")
+            .setRequired(true)
+    )
+    .setDefaultMemberPermissions(
+        PermissionFlagsBits.ModerateMembers
+    )
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(TOKEN);
@@ -208,7 +233,116 @@ client.on("interactionCreate", async interaction => {
             ephemeral: true
         });
     }
+// =========================
+// MASSWARN
+// =========================
 
+if (commandName === "masswarn") {
+
+    const target = interaction.options.getUser("user");
+    const amount = interaction.options.getInteger("amount");
+    const reason = interaction.options.getString("reason");
+
+    if (target.id === interaction.user.id) {
+        return interaction.reply({
+            content: "❌ Нельзя предупредить самого себя.",
+            ephemeral: true
+        });
+    }
+
+    const member = await interaction.guild.members
+        .fetch(target.id)
+        .catch(() => null);
+
+    if (!member) {
+        return interaction.reply({
+            content: "❌ Пользователь не найден на сервере.",
+            ephemeral: true
+        });
+    }
+
+    if (member.id === interaction.guild.ownerId) {
+        return interaction.reply({
+            content: "❌ Нельзя предупредить владельца сервера.",
+            ephemeral: true
+        });
+    }
+
+    if (
+        member.roles.highest.position >=
+        interaction.member.roles.highest.position &&
+        interaction.guild.ownerId !== interaction.user.id
+    ) {
+        return interaction.reply({
+            content:
+                "❌ Ты не можешь модерировать пользователя с такой же или более высокой ролью.",
+            ephemeral: true
+        });
+    }
+
+    const warnings = getWarnings(
+        interaction.guild.id,
+        target.id
+    );
+
+    await interaction.reply({
+        content:
+            `⚠️ Начинаю выдачу **${amount}** предупреждений пользователю ${target}.\n` +
+            `📝 Причина: **${reason}**`
+    });
+
+    for (let i = 1; i <= amount; i++) {
+
+        warnings.push({
+            reason,
+            moderator: interaction.user.id,
+            timestamp: Date.now()
+        });
+
+        saveData();
+
+        const count = warnings.length;
+
+        const embed = new EmbedBuilder()
+            .setTitle(`⚠️ Предупреждение #${i}/${amount}`)
+            .setDescription(
+                `Пользователь ${target} получил предупреждение.`
+            )
+            .addFields(
+                {
+                    name: "Причина",
+                    value: reason
+                },
+                {
+                    name: "Модератор",
+                    value: interaction.user.toString()
+                },
+                {
+                    name: "Всего предупреждений",
+                    value: String(count)
+                }
+            )
+            .setTimestamp();
+
+        await interaction.channel.send({
+            embeds: [embed]
+        });
+
+        await sendLog(
+            interaction.guild,
+            embed
+        );
+
+        // Небольшая задержка между сообщениями
+        if (i < amount) {
+            await new Promise(resolve =>
+                setTimeout(resolve, 1000)
+            );
+        }
+    }
+
+    return;
+}
     // =========================
     // WARN
     // =========================
