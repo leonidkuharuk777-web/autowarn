@@ -28,7 +28,7 @@ const client = new Client({
 });
 
 const DATA_FILE = "./warnings.json";
-
+let massWarnRunning = false;
 let data = {
     warnings: {},
     logChannels: {}
@@ -156,7 +156,7 @@ new SlashCommandBuilder()
             .setDescription("Количество предупреждений")
             .setRequired(true)
             .setMinValue(1)
-            .setMaxValue(20)
+            .setMaxValue(300)
     )
     .addStringOption(option =>
         option
@@ -166,7 +166,13 @@ new SlashCommandBuilder()
     )
     .setDefaultMemberPermissions(
         PermissionFlagsBits.ModerateMembers
-    )
+    ),
+    new SlashCommandBuilder()
+    .setName("stopwarn")
+    .setDescription("Остановить текущую выдачу массовых предупреждений")
+    .setDefaultMemberPermissions(
+        PermissionFlagsBits.ModerateMembers
+    ),
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(TOKEN);
@@ -238,6 +244,13 @@ client.on("interactionCreate", async interaction => {
 // =========================
 
 if (commandName === "masswarn") {
+if (massWarnRunning) {
+    return interaction.reply({
+        content: "❌ Сейчас уже выполняется массовая выдача варнов. Сначала используй `/stopwarn`.",
+        ephemeral: true
+    });
+}
+
 
     const target = interaction.options.getUser("user");
     const amount = interaction.options.getInteger("amount");
@@ -284,7 +297,7 @@ if (commandName === "masswarn") {
         interaction.guild.id,
         target.id
     );
-
+massWarnRunning = true;
     await interaction.reply({
         content:
             `⚠️ Начинаю выдачу **${amount}** предупреждений пользователю ${target}.\n` +
@@ -292,7 +305,11 @@ if (commandName === "masswarn") {
     });
 
     for (let i = 1; i <= amount; i++) {
-
+if (!massWarnRunning) {
+    await interaction.channel.send("🛑 Массовая выдача варнов остановлена.");
+    massWarnRunning = false;
+    return;
+}
         warnings.push({
             reason,
             moderator: interaction.user.id,
@@ -341,7 +358,27 @@ if (commandName === "masswarn") {
         }
     }
 
+ massWarnRunning = false;
     return;
+}
+    // =========================
+// STOPWARN
+// =========================
+
+if (commandName === "stopwarn") {
+
+    if (!massWarnRunning) {
+        return interaction.reply({
+            content: "ℹ️ Сейчас нет активной массовой выдачи варнов.",
+            ephemeral: true
+        });
+    }
+
+    massWarnRunning = false;
+
+    return interaction.reply({
+        content: "🛑 Массовая выдача варнов остановлена."
+    });
 }
     // =========================
     // WARN
